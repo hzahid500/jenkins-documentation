@@ -1,0 +1,106 @@
+pipeline {
+    agent any
+
+    environment {
+      // define environment variables if needed
+      // SONARQUBE_SERVER: 'http://your-sonarqube-server'
+      // SONARQUBE_TOKEN: credentials('your-sonarqube-token-id')
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                // Checkout your source code from your version control system (e.g., Git)
+                git branch: "main", url: "https://github.com/..."
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                // Install Node.js and npm if not already installed
+                // Use a tool like nvm or install them globally on your Jenkins node
+
+                // Install project dependencies
+                sh 'npm install'
+            }
+        }
+
+        stage('Build') {
+            steps {
+                // Set up the JDK (if not configured globally)
+                // tool name should match the name defined in Jenkins -> Manage Jenkins -> Global Tool Configuration
+                // For example, 'JDK8', 'JDK11', etc.
+                // tool name may not be needed if configured globally
+
+                // Use the Maven tool (defined in Global Tool Configuration) to build the project
+                // 'clean install' is a common Maven command for building and packaging
+                sh "mvn clean install"
+                // Run your custom build script or command
+                sh 'npm run build'
+            }
+        }
+
+        stage("SonarQube Analysis") {
+          steps {
+            // Execute SonarQube analysis using the SonarScanner
+                // Make sure you've configured SonarQube server and authentication details in Jenkins
+
+                // The 'sonar:sonar' goal triggers the SonarQube analysis
+                withSonarQubeEnv('SonarQube Server') {
+                    sh "mvn sonar:sonar"
+          }
+        }
+
+        stage('Test') {
+            steps {
+                // Run your custom test script or command
+                sh 'npm test'
+            }
+        }
+
+        stage('Deploy to staging') {
+            steps {
+                // Add deployment steps here
+            }
+        }
+
+        stage("Promote to Production") {
+          when {
+            expression { currentBuild.resultIsBetterOrEqualTo('SUCCESS') }
+          }
+          steps {
+            // promote application to production
+          }
+        }
+
+        stage("cleanup") {
+          steps {
+            // perform cleanup tasks
+          }
+        }
+
+        stage("notify") {
+          steps {
+            // send notifications (e.g., email, slack message)
+          }
+        }
+    }
+
+    post {
+        success {
+            // Actions to take when the pipeline is successful
+            echo 'Build and tests succeeded! Deploying to production...'
+            // Add deployment steps here
+        }
+        failure {
+            // Actions to take when the pipeline fails
+            echo 'Build or tests failed! Sending notification...'
+            // Add notification steps here
+        }
+        always {
+            // Actions to always execute, regardless of build outcome
+            echo 'Cleaning up...'
+            // Add cleanup steps here
+        }
+    }
+}
